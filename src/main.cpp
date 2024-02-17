@@ -1,18 +1,31 @@
 #include <Arduino.h>
+#include "temp_humidity.h"
 
-// put function declarations here:
-int myFunction(int, int);
-
-void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
-}
-
-void loop() {
-  // put your main code here, to run repeatedly:
-}
+#define HEATER_RELAIS_PIN 5
 
 // put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+void toggleRelais()
+{
+  startDHTMonitoring();
+  digitalWrite(HEATER_RELAIS_PIN, HIGH);
+  Serial.print("heater on\n");
+  delay(1000);
+  startDHTMonitoring();
+  digitalWrite(HEATER_RELAIS_PIN, LOW);
+  Serial.print("heater off\n");
+  delay(1000);
+}
+
+void setup()
+{
+  // put your setup code here, to run once:
+  pinMode(HEATER_RELAIS_PIN, OUTPUT);
+  setupDHT();
+  Serial.begin(115200);
+}
+
+void loop()
+{
+  toggleRelais();
+  // put your main code here, to run repeatedly:
 }
