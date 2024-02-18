@@ -1,4 +1,4 @@
-#include "temp_humidity.h"
+#include <temp_humidity.hpp>
 #include <Arduino.h>
 
 DHT dht(DHTPIN, DHTTYPE);
@@ -8,16 +8,19 @@ void setupDHT()
   dht.begin();
 }
 
-float startDHTMonitoring()
+void startDHTMonitoring(float &temperature, float &humidity)
 {
   float offset_temperature = 1;
-  float humidity = dht.readHumidity();
-  float temperature = dht.readTemperature() - offset_temperature;
+  humidity = dht.readHumidity();
+  temperature = dht.readTemperature() - offset_temperature;
 
   if (isnan(humidity) || isnan(temperature))
   {
     Serial.println(F("Failed to read from DHT sensor!"));
-    return -1.0;
+    // error values to avoid NaN return value of DHT lib
+    temperature = -1.0;
+    humidity = -1.0;
+    return;
   }
 
   Serial.print(F("Starting DHT Monitoring... Humidity: "));
@@ -25,8 +28,6 @@ float startDHTMonitoring()
   Serial.print(F("%  Temperature: "));
   Serial.print(temperature);
   Serial.println(F("°C "));
-
-  return temperature;
 }
 
 float stopDHTMonitoring()

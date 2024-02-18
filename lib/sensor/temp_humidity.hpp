@@ -3,8 +3,8 @@
 
 #include <DHT.h>
 
-#define DHTPIN 4  
-#define DHTTYPE DHT11 
+#define DHTPIN 4
+#define DHTTYPE DHT11
 
 void setupDHT();
 float startDHTMonitoring();

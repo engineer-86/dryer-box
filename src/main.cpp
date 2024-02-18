@@ -1,16 +1,26 @@
 #include <Arduino.h>
-#include "temp_humidity.h"
+#include <temp_humidity.hpp>
+#include <wifi.hpp>
+#include <mqtt.hpp>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <ArduinoJson.h>
 
 #define HEATER_RELAIS_PIN 5
 
-// put function definitions here:
+
+static String info_text = "Watering system ready";
+bool pump_on = false;
+static PubSubClient connected_mqtt_client;
+
+
 void toggleRelais()
 {
-  startDHTMonitoring();
+ 
   digitalWrite(HEATER_RELAIS_PIN, HIGH);
   Serial.print("heater on\n");
   delay(1000);
-  startDHTMonitoring();
+ 
   digitalWrite(HEATER_RELAIS_PIN, LOW);
   Serial.print("heater off\n");
   delay(1000);
@@ -20,12 +30,23 @@ void setup()
 {
   // put your setup code here, to run once:
   pinMode(HEATER_RELAIS_PIN, OUTPUT);
-  setupDHT();
+  
   Serial.begin(115200);
+  setupDHT();
+  connectTohWifi();
+  connected_mqtt_client = connectToBroker();
+
 }
 
 void loop()
 {
+  startDHTMonitoring();
+
+  static StaticJsonDocument<300> doc;
+  static StaticJsonDocument<300> to_publish;
+  
   toggleRelais();
-  // put your main code here, to run repeatedly:
+  doc["pump_on"] = pump_on;
+  
+  
 }
