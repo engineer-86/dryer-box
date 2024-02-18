@@ -7,7 +7,7 @@
 #define DHTTYPE DHT11
 
 void setupDHT();
-float startDHTMonitoring();
+void startDHTMonitoring(float &temperature, float &humidity);
 float stopDHTMonitoring();
 
 #endif // TEMP_HUMIDITY_H
