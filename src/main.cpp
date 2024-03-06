@@ -5,56 +5,60 @@
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 #include <ArduinoJson.h>
+#include <relais.hpp>
 
 static String info_text = "Watering system ready";
 bool pump_on = false;
 static PubSubClient connected_mqtt_client;
 char payload[200];
 
-void toggleRelais()
+void setupRelais()
 {
-
-  // digitalWrite(FAN_RELAIS_PIN, LOW);
-  // Serial.print("FAN ON\n");
-  // delay(1000);
-
-  digitalWrite(HEATER_RELAIS_PIN, HIGH);
-  Serial.print("heater on\n");
-  delay(1000);
+  pinMode(HEATER_RELAIS_PIN, OUTPUT);
+  pinMode(FAN_RELAIS_PIN, OUTPUT);
 }
+
+Relais heaterRelay(HEATER_RELAIS_PIN, "HEATER");
+Relais fanRelay(FAN_RELAIS_PIN, "FAN");
 
 void setup()
 {
-
-  pinMode(HEATER_RELAIS_PIN, OUTPUT);
-  pinMode(FAN_RELAIS_PIN, OUTPUT);
-  Serial.begin(115200);
+  setupRelais();
   setupDHT();
+  Serial.begin(115200);
+
   connectTohWifi();
   connected_mqtt_client = connectToBroker();
 }
 
 void loop()
 {
+  char infoBuffer[100];
   float temperature = 0.0;
   float humidtiy = 0.0;
-
   startDHTMonitoring(temperature, humidtiy);
 
+  sprintf(infoBuffer, "INFO: %s %d \n",
+          heaterRelay.getName().c_str(),
+          heaterRelay.getState() ? 1 : 0);
+
+  Serial.print(infoBuffer);
+
   // temperature never higher then 80 degrees C
-  if (temperature > 20)
+  if (temperature > 80)
   {
-    digitalWrite(FAN_RELAIS_PIN, HIGH);
-    Serial.print("heater off\n");
+    heaterRelay.turnOff();
+    fanRelay.turnOff(); // Fan relay is normally open, turnOff means fan on!
   }
+
   static StaticJsonDocument<300> doc;
   static StaticJsonDocument<300> to_publish;
-
-  toggleRelais();
+  doc["heater relay state"] = heaterRelay.getState();
+  doc["fan relay state"] = fanRelay.getState();
   doc["temperature"] = temperature;
   doc["humidtiy"] = humidtiy;
   to_publish = doc;
 
   serializeJson(to_publish, payload);
-  connected_mqtt_client.publish("tele/heater/state", payload);
+  connected_mqtt_client.publish("tele/dryer/state", payload);
 }
