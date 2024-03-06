@@ -6,11 +6,22 @@
 #include <NTPClient.h>
 #include <ArduinoJson.h>
 #include <relais.hpp>
+#include <filament_settings.hpp>
 
 static String info_text = "Watering system ready";
 bool pump_on = false;
 static PubSubClient connected_mqtt_client;
 char payload[200];
+
+void mqttCallback(char *topic, byte *payload, unsigned int length)
+{
+
+  char message[length + 1];
+  memcpy(message, payload, length);
+  message[length] = '\0';
+
+  // setDryerSettings(String(message));
+}
 
 void setupRelais()
 {
@@ -44,7 +55,7 @@ void loop()
 
   Serial.print(infoBuffer);
 
-  // temperature never higher then 80 degrees C
+  // Security statement temperature never higher then 80 degrees C
   if (temperature > 80)
   {
     heaterRelay.turnOff();
