@@ -2,9 +2,7 @@
 #define TEMP_HUMIDITY_H
 
 #include <DHT.h>
-
-#define DHTPIN 4
-#define DHTTYPE DHT11
+#include <pins.hpp>
 
 void setupDHT();
 void startDHTMonitoring(float &temperature, float &humidity);
