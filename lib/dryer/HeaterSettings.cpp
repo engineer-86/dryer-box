@@ -5,18 +5,7 @@ HeaterSettings::HeaterSettings(TempHumidity& tempHumidity) : tempHumidity(tempHu
 
 void HeaterSettings::setTargetTemperature(uint8_t temperature, Relais& heaterRelay, Relais& fanRelay) {
     tempHumidity.updateReadings(); 
-    float currentTemp = tempHumidity.getTemperature();
-
     targetTemperature = temperature;
-    if (currentTemp < targetTemperature) {
-        heaterRelay.turnOn();
-        fanRelay.turnOff();
-        Serial.println("PTC heater is activated.");
-    } else {
-        heaterRelay.turnOff();
-        fanRelay.turnOn();
-        Serial.println("PTC heater is deactivated.");
-    }
 }
 
 void HeaterSettings::setTargetTime(unsigned long time) {

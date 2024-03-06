@@ -38,15 +38,16 @@ constexpr unsigned long hoursToMilliseconds(unsigned int hours)
 
 // Filament settings for various materials
 const FilamentSetting filamentSettings[] = {
-    {"PLA", 50, hoursToMilliseconds(4)},
+    {"PLA", 40, hoursToMilliseconds(4)},
     {"ABS", 60, hoursToMilliseconds(2)},
     {"PETG", 65, hoursToMilliseconds(2)},
-    {"Nylon", 70, hoursToMilliseconds(2)},
+    {"NYLON", 70, hoursToMilliseconds(2)},
     {"PC", 70, hoursToMilliseconds(8)},
     {"TPU", 55, hoursToMilliseconds(4)},
     {"PVA", 50, hoursToMilliseconds(4)},
     {"ASA", 60, hoursToMilliseconds(4)},
     {"PP", 55, hoursToMilliseconds(6)},
+    {"TestFilament", 40, 10000},
 
 };
 
