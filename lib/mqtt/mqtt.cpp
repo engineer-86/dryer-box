@@ -20,7 +20,9 @@ void connectToBroker()
                                 broker_credentials.getBrokerPassword()))
         {
             Serial.println("verbunden");
-            mqtt_client.subscribe("cmnd/dryer/filament/"); // Abonnieren des Befehlstopics
+            mqtt_client.subscribe("cmnd/dryer/filament");
+            mqtt_client.subscribe("cmnd/dryer/heater");
+            mqtt_client.subscribe("cmnd/dryer/fan");
         }
         else
         {
