@@ -1,4 +1,4 @@
-#include "relais.hpp"
+#include "Relais.hpp"
 
 Relais::Relais(uint8_t p, String n) : pin(p), name(n)
 {

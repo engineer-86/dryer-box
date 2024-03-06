@@ -1,14 +1,12 @@
-#ifndef MQTT_H
-#define MQTT_H
-
-/**
- * https://pubsubclient.knolleary.net/api
- */
+#ifndef MQTT_HPP
+#define MQTT_HPP
 
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
 
-PubSubClient connectToBroker();
-void publish_state();
+extern PubSubClient mqtt_client; // Externe Deklaration
 
-#endif /* MQTT_H */
+void connectToBroker();
+void reconnectToBroker();
+
+#endif // MQTT_HPP

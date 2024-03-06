@@ -1,4 +1,4 @@
-#include <temp_humidity.hpp>
+#include <TempHumidity.hpp>
 #include <Arduino.h>
 
 DHT dht(DHTPIN, DHTTYPE);

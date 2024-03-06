@@ -1,23 +1,17 @@
-/**
- * https://starthardware.org/arduino-wifi-mit-dem-esp8266-als-arduino/
- */
-#include <wifi.hpp>
-#include <credentials.hpp>
+#include "Wifi.hpp"
+#include <Credentials.hpp>
 #include <ESP8266WiFi.h>
 
-// Credentials credentials;
-void connectTohWifi()
+void connectToWifi()
 {
-
     Credentials wifi_credentials;
-    WiFi.begin(wifi_credentials.getWifiSSID(),
-               wifi_credentials.getWifiPassword());
+    WiFi.begin(wifi_credentials.getWifiSSID(), wifi_credentials.getWifiPassword());
 
+    Serial.print("Verbinden mit WIFI");
     while (WiFi.status() != WL_CONNECTED)
     {
-        Serial.print("Versuche zu verbinden mit WIFI.\n");
         delay(500);
+        Serial.print(".");
     }
-    Serial.println("");
-    Serial.println("WiFi verbunden\n");
+    Serial.println("\nWiFi verbunden");
 }

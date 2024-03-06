@@ -1,29 +1,45 @@
-#include <mqtt.hpp>
-#include <credentials.hpp>
+#include "Mqtt.hpp"
+#include <Credentials.hpp>
+#include <Wifi.hpp>
 
 WiFiClient espClient;
 PubSubClient mqtt_client(espClient);
-PubSubClient connectToBroker()
+
+void connectToBroker()
 {
     Credentials broker_credentials;
-    mqtt_client.setServer(broker_credentials.getBrokerIP(),
-                          broker_credentials.getBrokerPort());
+    mqtt_client.setServer(broker_credentials.getBrokerIP(), broker_credentials.getBrokerPort());
 
     while (!mqtt_client.connected())
     {
-        String client_id = "Irrigation-";
+        String client_id = "dryer-" + String(random(0xffff), HEX); // Zufällige Client-ID
+        Serial.print("Versuche, zum MQTT Broker zu verbinden...");
 
-        if (mqtt_client.connect(client_id.c_str(), broker_credentials.getBrokerUsername(),
+        if (mqtt_client.connect(client_id.c_str(),
+                                broker_credentials.getBrokerUsername(),
                                 broker_credentials.getBrokerPassword()))
         {
+            Serial.println("verbunden");
+            mqtt_client.subscribe("cmnd/dryer/filament/"); // Abonnieren des Befehlstopics
         }
         else
         {
-            Serial.print("failed with state ");
+            Serial.print("Verbindung fehlgeschlagen, rc=");
             Serial.print(mqtt_client.state());
-            delay(2000);
+            Serial.println(" versuche es in 5 Sekunden erneut");
+            delay(5000);
         }
+        Serial.print("Broker IP: ");
+        Serial.println(broker_credentials.getBrokerIP());
+        Serial.print("Port: ");
+        Serial.println(broker_credentials.getBrokerPort());
     }
+}
 
-    return mqtt_client;
+void reconnectToBroker()
+{
+    if (!mqtt_client.connected())
+    {
+        connectToBroker();
+    }
 }
