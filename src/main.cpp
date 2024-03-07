@@ -132,6 +132,13 @@ void loop()
   tempHumidity.updateReadings();
   float temperature = tempHumidity.getTemperature();
 
+  // Check MQTT connection and reconnect if necessary
+  if (!mqtt_client.connected())
+  {
+    reconnectToBroker();
+  }
+  mqtt_client.loop();
+
   // Safety shutdown at temperatures above 80°C
   if (temperature >= 80)
   {
@@ -159,13 +166,6 @@ void loop()
     fanRelay.turnOff(); // fan keeps cooling (NC)
     Serial.println("PTC heater is activated. Temperature below target.");
   }
-
-  // Check MQTT connection and reconnect if necessary
-  if (!mqtt_client.connected())
-  {
-    reconnectToBroker();
-  }
-  mqtt_client.loop();
 
   // Calculate remaining time and turn off the heater when time up
   unsigned long remainingTime = heater.computeRemainingTime();

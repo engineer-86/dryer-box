@@ -47,7 +47,7 @@ const FilamentSetting filamentSettings[] = {
     {"PVA", 50, hoursToMilliseconds(4)},
     {"ASA", 60, hoursToMilliseconds(4)},
     {"PP", 55, hoursToMilliseconds(6)},
-    {"TestFilament", 40, 10000},
+    {"TestFilament", 40, 10000}, // for test purposes
 
 };
 
