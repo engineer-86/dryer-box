@@ -6,8 +6,8 @@
 
 This project was initiated after my Eibos Cyclopes filament dryer stopped functioning. Instead of discarding the entire unit, I opted to repurpose the PTC heating element and the case to construct a bespoke filament dryer. This approach not only recycles parts that are still usable but also delivers a customized solution to meet my specific 3D printing requirements.
 
-<img src="/assets/wired.jpg" alt="Inside" width="200"/>
-
+<img src="/assets/wired_01.jpg" alt="Inside" width="200"/>
+<img src="/assets/wired_02.jpg" alt="Inside" width="200"/>
 ## Components
 
 - **Microcontroller**: ESP8266 (Wemos Mini), selected for its WiFi capabilities and Arduino code compatibility. [More Info](https://shorturl.at/hnuOP)
