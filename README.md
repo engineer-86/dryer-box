@@ -70,6 +70,46 @@ The filament dryer utilizes MQTT (Message Queuing Telemetry Transport) for effec
   connected_mqtt_client.publish("tele/dryer/state", payload);
   ```
 
+  ## Filament Drying Times and MQTT Message Handling
+
+### Filament Settings
+
+The `FilamentSettings.hpp` file contains definitions for various 3D printing filaments, specifying the recommended drying temperature and time. These settings are crucial for ensuring that each filament type is dried under optimal conditions to preserve its quality and printing characteristics.
+
+Here is a summary of the drying settings for different filament materials:
+
+- PLA: 50°C for 4 hours
+- ABS: 60°C for 2 hours
+- PETG: 65°C for 2 hours
+- NYLON: 70°C for 2 hours
+- PC: 70°C for 8 hours
+- TPU: 55°C for 4 hours
+- PVA: 50°C for 4 hours
+- ASA: 60°C for 4 hours
+- PP: 55°C for 6 hours
+
+The drying time is calculated in milliseconds using the `hoursToMilliseconds` function, providing a precise control mechanism for the drying process.
+
+### MQTT Message Handling
+
+The system subscribes to specific MQTT topics to receive commands that control the drying process. Here are the key topics and their expected messages:
+
+- `cmnd/dryer/filament`: Receives the filament material name. The system then applies the corresponding drying settings for temperature and time.
+  - Sending a filament name (e.g., "PLA") sets the dryer to the specific settings for that filament.
+  - Sending "RESET" resets the dryer to a default state, turning off the heater and activating the fan.
+
+- `cmnd/dryer/heater`: Controls the state of the heater.
+  - Sending "ON" activates the heater (manual override).
+  - Sending "OFF" deactivates the heater (manual override).
+
+- `cmnd/dryer/fan`: Manages the operation of the fan.
+  - Sending "ON" turns the fan on (considering Normally Closed - NC - logic).
+  - Sending "OFF" turns the fan off (NC logic).
+
+Each command is processed in the `mqttCallback` function, which adjusts the dryer's operation according to the received message. This allows for remote monitoring and control over the drying process, ensuring that filaments are prepared optimally for 3D printing.
+
+
+
 ## PlatformIO Configuration
 
 The `platformio.ini` file is configured for the ESP8266 with essential libraries for DHT sensor reading, MQTT communication, NTP for time synchronization, and JSON for data handling.
@@ -89,6 +129,19 @@ lib_deps = adafruit/DHT sensor library@^1.4.6
            arduino-libraries/NTPClient@^3.2.1
            bblanchon/ArduinoJson@^6.19.4
 ```
+
+## Future Enhancements
+
+The filament dryer project is continuously evolving, with plans to integrate additional features and improvements to enhance functionality and user experience. Here are some of the planned enhancements:
+
+- [ ] **Checkboxes Integration**: Implementing a web interface with checkboxes for selecting the filament type and setting the drying parameters. This will allow for an easier and more intuitive control over the drying process.
+
+- [ ] **Push Button Support**: Adding physical push buttons to the dryer for manual control. This will include buttons for starting/stopping the drying cycle, selecting filament types, and manually overriding temperature and time settings.
+
+- [ ] **OLED Display Output**: Incorporating an OLED display to show real-time information about the drying process. This display will provide feedback on the current temperature, humidity, drying time remaining, and selected filament type, making it easier for users to monitor the dryer's status.
+
+These enhancements aim to improve the usability and flexibility of the filament dryer, making it more accessible and informative for users. Stay tuned for updates as these features are developed and integrated into the project.
+
 
 ## License
 
