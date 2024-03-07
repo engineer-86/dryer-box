@@ -140,6 +140,9 @@ The filament dryer project is continuously evolving, with plans to integrate add
 
 - [ ] **OLED Display Output**: Incorporating an OLED display to show real-time information about the drying process. This display will provide feedback on the current temperature, humidity, drying time remaining, and selected filament type, making it easier for users to monitor the dryer's status.
 
+- [ ] **Stepper Motor Control for Filament Rotation**: Implementing stepper motor control to rotate the filament spools during the drying process. This feature aims to ensure even drying by periodically turning the spools, preventing moisture from settling in any one area of the filament.
+  Like the `printables procject from warpster` [printables link](https://www.printables.com/model/336958)
+
 These enhancements aim to improve the usability and flexibility of the filament dryer, making it more accessible and informative for users. Stay tuned for updates as these features are developed and integrated into the project.
 
 ## License
