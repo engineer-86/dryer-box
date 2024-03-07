@@ -1,14 +1,18 @@
 # Filament Dryer Project
 
+![Dryer schematic](/assets/dryer_box_Steckplatine.png "Titel des Bildes")
+
 ## Motivation
 
-This project was initiated as a response to my Eibos Cyclopes filament dryer breaking down. Instead of discarding the entire unit, I decided to repurpose the PTC heating element and the case to create a new, custom filament dryer. This initiative not only recycles parts that are still functional but also provides a tailored solution to my 3D printing needs.
+This project was initiated after my Eibos Cyclopes filament dryer stopped functioning. Instead of discarding the entire unit, I opted to repurpose the PTC heating element and the case to construct a bespoke filament dryer. This approach not only recycles parts that are still usable but also delivers a customized solution to meet my specific 3D printing requirements.
 
 ## Components
 
-- **Microcontroller**: ESP8266, chosen for its WiFi capabilities and compatibility with Arduino code.
-- **Sensor**: DHT11, used for measuring humidity and temperature within the dryer.
-- **Relays**: Two relays are used, one to control the PTC heating element and another for the fan, ensuring precise temperature and airflow control.
+- **Microcontroller**: ESP8266 (Wemos Mini), selected for its WiFi capabilities and Arduino code compatibility. [More Info](https://shorturl.at/hnuOP)
+- **Sensor**: DHT11, employed for monitoring the humidity and temperature within the dryer.
+- **Relays**: Utilizes two relays for precise control over the PTC heating element and the fan, ensuring optimal temperature and airflow. [More Info](https://shorturl.at/mALQ7)
+- **PTC Heater**: A 220V PTC heating element repurposed from the original filament dryer. [More Info](https://shorturl.at/tvNV9)
+- **Power Converter**: Converts 220V AC to 5V DC, powering the ESP8266 and other low-voltage components. [More Info](https://shorturl.at/dekt5)
 
 ## Credentials Template
 
@@ -51,12 +55,19 @@ The ESP8266 connects to a predefined WiFi network using credentials specified in
 
 ### MQTT Communication
 
-MQTT (Message Queuing Telemetry Transport) is used for sending and receiving messages related to the dryer's status, including temperature, humidity, and operational commands. The device connects to an MQTT broker, specified in the `credentials.hpp`, to publish sensor readings and subscribe to control topics.
+The filament dryer utilizes MQTT (Message Queuing Telemetry Transport) for effective communication regarding the dryer's status, and to receive commands for operational control. It is configured to both publish its sensor data and subscribe to topics for remote commands.
+
+- **Subscribed Topics**:
+
+  - `cmnd/dryer/filament`: This topic listens for commands related to the filament. Commands published to this topic can control aspects like which filament to use or when to start drying.
+  - `cmnd/dryer/heater`: Through this topic, the dryer receives commands to control the heater's operation, such as turning the heater on or off and setting the desired temperature.
+  - `cmnd/dryer/fan`: This topic is used for controlling the fan's functionality within the dryer, allowing for adjustments in airflow to ensure optimal drying conditions.
+    cts to an MQTT broker, specified in the `credentials.hpp`, to publish sensor readings and subscribe to control topics.
 
 - **Publishing Data**: The device periodically publishes temperature and humidity readings to the MQTT topic `tele/heater/state`. This allows for remote monitoring of the filament dryer's environment through any MQTT client subscribed to the same topic.
 
   ```cpp
-  connected_mqtt_client.publish("tele/heater/state", payload);
+  connected_mqtt_client.publish("tele/dryer/state", payload);
   ```
 
 ## PlatformIO Configuration
@@ -84,5 +95,3 @@ lib_deps = adafruit/DHT sensor library@^1.4.6
 This project is made available under the MIT License. This license allows everyone to use, modify, distribute, and privately or commercially exploit the project, under the condition that the original copyright notice and permission notice are included in all copies or substantial portions of the software.
 
 The MIT License is a permissive license that is short and to the point. It lets people do anything they want with your code as long as they provide attribution back to you and don’t hold you liable.
-
-
