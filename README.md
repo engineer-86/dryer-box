@@ -65,7 +65,6 @@ The filament dryer utilizes MQTT (Message Queuing Telemetry Transport) for effec
   - `cmnd/dryer/heater`: Through this topic, the dryer receives commands to control the heater's operation, such as turning the heater on or off and setting the desired temperature.
   - `cmnd/dryer/fan`: This topic is used for controlling the fan's functionality within the dryer, allowing for adjustments in airflow to ensure optimal drying conditions.
     cts to an MQTT broker, specified in the `credentials.hpp`, to publish sensor readings and subscribe to control topics.
-
 - **Publishing Data**: The device periodically publishes temperature and humidity readings to the MQTT topic `tele/heater/state`. This allows for remote monitoring of the filament dryer's environment through any MQTT client subscribed to the same topic.
 
   ```cpp
@@ -100,13 +99,12 @@ The system subscribes to specific MQTT topics to receive commands that control t
 
   - Sending a filament name (e.g., "PLA") sets the dryer to the specific settings for that filament.
   - Sending "RESET" resets the dryer to a default state, turning off the heater and activating the fan.
-
 - `cmnd/dryer/heater`: Controls the state of the heater.
 
   - Sending "ON" activates the heater (manual override).
   - Sending "OFF" deactivates the heater (manual override).
-
 - `cmnd/dryer/fan`: Manages the operation of the fan.
+
   - Sending "ON" turns the fan on (considering Normally Closed - NC - logic).
   - Sending "OFF" turns the fan off (NC logic).
 
@@ -131,19 +129,17 @@ lib_deps = adafruit/DHT sensor library@^1.4.6
            arduino-libraries/NTPClient@^3.2.1
            bblanchon/ArduinoJson@^6.19.4
 ```
+`Attention:` you have to change the port to the one you are using!
 
 ## Future Enhancements
 
 The filament dryer project is continuously evolving, with plans to integrate additional features and improvements to enhance functionality and user experience. Here are some of the planned enhancements:
 
 - [ ] **Checkboxes Integration**: Implementing a web interface with checkboxes for selecting the filament type and setting the drying parameters. This will allow for an easier and more intuitive control over the drying process.
-
 - [ ] **Push Button Support**: Adding physical push buttons to the dryer for manual control. This will include buttons for starting/stopping the drying cycle, selecting filament types, and manually overriding temperature and time settings.
-
 - [ ] **OLED Display Output**: Incorporating an OLED display to show real-time information about the drying process. This display will provide feedback on the current temperature, humidity, drying time remaining, and selected filament type, making it easier for users to monitor the dryer's status.
-
 - [ ] **Stepper Motor Control for Filament Rotation**: Implementing stepper motor control to rotate the filament spools during the drying process. This feature aims to ensure even drying by periodically turning the spools, preventing moisture from settling in any one area of the filament.
-      Like the `printables procject from warpster` [printables link](https://www.printables.com/model/336958)
+  Like the `printables procject from warpster` [printables link](https://www.printables.com/model/336958)
 
 These enhancements aim to improve the usability and flexibility of the filament dryer, making it more accessible and informative for users. Stay tuned for updates as these features are developed and integrated into the project.
 

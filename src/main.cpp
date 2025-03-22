@@ -9,91 +9,88 @@
 #include <HeaterSettings.hpp>
 #include <Pins.hpp>
 
+// Initialize objects
 TempHumidity tempHumidity(DHTPIN, DHTTYPE);
 HeaterSettings heater(tempHumidity);
 Relais heaterRelay(HEATER_RELAIS_PIN, "Heater");
 Relais fanRelay(FAN_RELAIS_PIN, "Fan");
 bool manualOverride = false;
 
-void mqttCallback(char *topic, byte *payload, unsigned int length)
-{
+void mqttCallback(char *topic, byte *payload, unsigned int length) {
+  // Convert the payload to a null-terminated string
   char message[length + 1];
   memcpy(message, payload, length);
   message[length] = '\0';
-
   String messageStr(message);
+
   Serial.print("MQTT message received on topic: ");
   Serial.print(topic);
   Serial.print(" Message: ");
   Serial.println(messageStr);
 
-  if (String(topic) == "cmnd/dryer/filament")
-  {
-    for (const auto &setting : filamentSettings)
-    {
-      if (setting.material.equalsIgnoreCase(messageStr))
-      {
+  String topicStr = String(topic);
+
+  // Handle the RESET command before processing filament settings
+  if (topicStr == "cmnd/dryer/filament" && messageStr.equalsIgnoreCase("RESET")) {
+    manualOverride = false;
+    heaterRelay.turnOff();    // Turn off the heater
+    heater.setTargetTime(0);
+    fanRelay.turnOn();        // NC: "turnOn" turns the fan OFF
+    Serial.println("Heater reset filament state!");
+    return; // Exit callback after processing RESET
+  }
+
+  if (topicStr == "cmnd/dryer/filament") {
+    // Iterate through filament settings to apply matching configuration
+    for (const auto &setting : filamentSettings) {
+      if (setting.material.equalsIgnoreCase(messageStr)) {
         heater.setTargetTemperature(setting.temperature, heaterRelay, fanRelay);
         heater.setTargetTime(setting.time);
-        fanRelay.turnOff();
-        heaterRelay.turnOn();
+        fanRelay.turnOff();   // NC: "turnOff" turns the fan ON
+        heaterRelay.turnOn();  // Turn heater ON
         Serial.println("Filament settings applied: " + messageStr);
         break;
       }
-      else if (messageStr.equalsIgnoreCase("RESET"))
-      {
-        manualOverride = false;
-        heaterRelay.turnOff();
-        heater.setTargetTime(0);
-        fanRelay.turnOn(); // NC
-        Serial.println("Heater reseted filament state!");
-      }
     }
   }
-
-  else if (String(topic) == "cmnd/dryer/heater")
-  {
-    manualOverride = true; // Manual Override
-    if (messageStr.equalsIgnoreCase("ON"))
-    {
+  else if (topicStr == "cmnd/dryer/heater") {
+    manualOverride = true; // Enable manual override
+    if (messageStr.equalsIgnoreCase("ON")) {
       heaterRelay.turnOn();
-      fanRelay.turnOff(); // on NC
+      fanRelay.turnOff();    // NC: "turnOff" turns the fan ON
       Serial.println("Heater turned ON (Manual Override)");
     }
-    else if (messageStr.equalsIgnoreCase("OFF"))
-    {
+    else if (messageStr.equalsIgnoreCase("OFF")) {
       heaterRelay.turnOff();
-      fanRelay.turnOn(); // NC
+      fanRelay.turnOn();     // NC: "turnOn" turns the fan OFF
       Serial.println("Heater turned OFF (Manual Override)");
     }
   }
-  else if (String(topic) == "cmnd/dryer/fan")
-  {
-    manualOverride = true; // Manual Override
-    if (messageStr.equalsIgnoreCase("ON"))
-    {
-      fanRelay.turnOff(); // NC
+  else if (topicStr == "cmnd/dryer/fan") {
+    manualOverride = true; // Enable manual override
+    if (messageStr.equalsIgnoreCase("ON")) {
+      fanRelay.turnOff();    // NC: "turnOff" turns the fan ON
       Serial.println("Fan turned ON (NC) (Manual Override)");
     }
-    else if (messageStr.equalsIgnoreCase("OFF"))
-    {
-      fanRelay.turnOn(); // turns fan off NC
+    else if (messageStr.equalsIgnoreCase("OFF")) {
+      fanRelay.turnOn();     // NC: "turnOn" turns the fan OFF
       Serial.println("Fan turned OFF (NC) (Manual Override)");
     }
   }
 }
 
-void publishDryerState()
-{
+void publishDryerState() {
+  // Update sensor readings
   tempHumidity.updateReadings();
 
   StaticJsonDocument<300> doc;
   doc["humidity"] = tempHumidity.getHumidity();
   doc["currentTemperature"] = tempHumidity.getTemperature();
   doc["targetTemperature"] = heater.getTargetTemperature();
-  doc["remainingTime"] = (heater.computeRemainingTime() / 60000);
+  doc["remainingTime"] = heater.computeRemainingTime() / 60000;
   doc["heaterState"] = heaterRelay.getState();
-  doc["fanState"] = fanRelay.getState() ? false : true; // change bool for fan monitoring (NC)
+  // For NC logic: if fanRelay.getState() is false, then the fan is actually ON
+  doc["fanState"] = !fanRelay.getState();
 
   char buffer[512];
   serializeJson(doc, buffer);
@@ -102,85 +99,79 @@ void publishDryerState()
   char infoBuffer[256];
   sprintf(infoBuffer, "INFO: Heater: %s %d, Fan: %s %d\n",
           heaterRelay.getName().c_str(), heaterRelay.getState() ? 1 : 0,
-          fanRelay.getName().c_str(), fanRelay.getState() ? 0 : 1);
-
+          fanRelay.getName().c_str(), !fanRelay.getState() ? 1 : 0);
   Serial.print(infoBuffer);
 }
 
-void setupRelais()
-{
+void setupRelais() {
   pinMode(HEATER_RELAIS_PIN, OUTPUT);
   pinMode(FAN_RELAIS_PIN, OUTPUT);
 }
 
-void setup()
-{
+void setup() {
   setupRelais();
   Serial.begin(115200);
+
+  // Connect to WiFi and MQTT broker
   connectToWifi();
   connectToBroker();
   mqtt_client.setCallback(mqttCallback);
 
+  // Initialize the temperature/humidity sensor
   tempHumidity.setupDHT();
 
+  // Set initial states: Heater OFF, Fan OFF in NC configuration
   heaterRelay.turnOff();
-  fanRelay.turnOff();
+  fanRelay.turnOn();
 }
-void loop()
-{
-  // Update temperature and humidity readings
+
+void loop() {
+  // Update sensor readings
   tempHumidity.updateReadings();
   float temperature = tempHumidity.getTemperature();
 
-  // Check MQTT connection and reconnect if necessary
-  if (!mqtt_client.connected())
-  {
+  // Ensure MQTT connection is active
+  if (!mqtt_client.connected()) {
     reconnectToBroker();
   }
   mqtt_client.loop();
 
-  // Safety shutdown at temperatures above 80°C
-  if (temperature >= 80)
-  {
+  // Safety shutdown if temperature is >= 80°C
+  if (temperature >= 80) {
     heaterRelay.turnOff();
-    fanRelay.turnOff(); // Fan ON due to NC connection, safety shutdown
+    fanRelay.turnOff();    // NC: "turnOff" turns the fan ON
     Serial.println("Safety: Temperature >= 80°C. Heater OFF, Fan ON.");
   }
-  else if (temperature < 30 && !heaterRelay.getState() && manualOverride == false)
-  {
-    // Turn off the fan if the temperature is below 30 degrees and the heater is off
-    fanRelay.turnOn(); // Fan OFF due to NC connection
+  else if (temperature < 30 && !heaterRelay.getState() && !manualOverride) {
+    // If temperature is below 30°C and heater is off, turn fan OFF
+    fanRelay.turnOn();     // NC: "turnOn" turns the fan OFF
     Serial.println("Temperature < 30°C. Fan OFF.");
   }
-  else if (temperature >= heater.getTargetTemperature() && manualOverride == false)
-  {
-    // Turn off the heater and keep the fan running when the target temperature is reached
+  else if (temperature >= heater.getTargetTemperature() && !manualOverride) {
+    // If target temperature is reached or exceeded, turn heater OFF and keep fan ON for cooling
     heaterRelay.turnOff();
-    fanRelay.turnOff(); // fan keeps cooling (NC)
-    Serial.println("Target temperature reached or exceeded. Heater OFF, Fan continues for cooling.");
+    fanRelay.turnOff();    // NC: "turnOff" turns the fan ON
+    Serial.println("Target temperature reached or exceeded. Heater OFF, Fan ON for cooling.");
   }
-  else if (temperature < heater.getTargetTemperature() && manualOverride == false)
-  {
-    // Turn on the heater if the temperature is below the target temperature
+  else if (temperature < heater.getTargetTemperature() && !manualOverride) {
+    // If temperature is below target, turn heater ON and keep fan ON
     heaterRelay.turnOn();
-    fanRelay.turnOff(); // fan keeps cooling (NC)
+    fanRelay.turnOff();    // NC: "turnOff" turns the fan ON
     Serial.println("PTC heater is activated. Temperature below target.");
   }
 
-  // Calculate remaining time and turn off the heater when time up
+  // Check if the drying time has elapsed and turn off the heater if necessary
   unsigned long remainingTime = heater.computeRemainingTime();
-  if (remainingTime == 0 && heaterRelay.getState())
-  {
+  if (remainingTime == 0 && heaterRelay.getState()) {
     heaterRelay.turnOff();
     Serial.println("Drying complete. Heater OFF.");
-
-    if (temperature < 30 && !heaterRelay.getState())
-    {
-      fanRelay.turnOff(); // Fan ON for cooling
+    if (temperature < 30 && !heaterRelay.getState()) {
+      // At low temperatures, turn fan OFF (NC: turnOn turns the fan OFF)
+      fanRelay.turnOn();
       Serial.println("Temperature < 30°C. Fan OFF.");
     }
   }
 
   publishDryerState();
-  delay(1000); // Short pause to not overload the loop
+  delay(1000); // Short delay to prevent loop overload
 }
