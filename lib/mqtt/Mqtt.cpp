@@ -1,43 +1,38 @@
 #include "Mqtt.hpp"
-#include <Credentials.hpp>
-#include <Wifi.hpp>
 
-WiFiClient espClient;
+WiFiClient   espClient;
 PubSubClient mqtt_client(espClient);
 
-void connectToBroker()
-{
-    Credentials broker_credentials;
-    mqtt_client.setServer(broker_credentials.getBrokerIP(), broker_credentials.getBrokerPort());
+// Retained so reconnectToBroker() can re-use them without re-passing through main
+static NetworkCredentials storedCreds;
 
-    while (!mqtt_client.connected())
-    {
+void connectToBroker(const NetworkCredentials& creds) {
+    storedCreds = creds;
+    mqtt_client.setServer(creds.brokerIP.c_str(), creds.brokerPort);
+
+    while (!mqtt_client.connected()) {
         String client_id = "dryer-" + String(random(0xffff), HEX);
         Serial.print("Connecting to MQTT broker...");
 
         if (mqtt_client.connect(client_id.c_str(),
-                                broker_credentials.getBrokerUsername(),
-                                broker_credentials.getBrokerPassword()))
-        {
+                                creds.brokerUser.c_str(),
+                                creds.brokerPassword.c_str())) {
             Serial.println("connected");
             mqtt_client.subscribe("cmnd/dryer/filament");
             mqtt_client.subscribe("cmnd/dryer/heater");
             mqtt_client.subscribe("cmnd/dryer/fan");
-        }
-        else
-        {
-            Serial.print("Connection failed, rc=");
+            mqtt_client.subscribe("cmnd/dryer/config");
+        } else {
+            Serial.print("failed, rc=");
             Serial.print(mqtt_client.state());
-            Serial.println(" — retrying in 5 seconds");
+            Serial.println(" — retrying in 5s");
             delay(5000);
         }
     }
 }
 
-void reconnectToBroker()
-{
-    if (!mqtt_client.connected())
-    {
-        connectToBroker();
+void reconnectToBroker() {
+    if (!mqtt_client.connected()) {
+        connectToBroker(storedCreds);
     }
 }

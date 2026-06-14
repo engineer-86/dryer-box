@@ -1,6 +1,9 @@
 #ifndef WIFI_H
 #define WIFI_H
 
-void connectToWifi();
+#include <NetworkCredentials.hpp>
 
-#endif /* WIFI_H */
+// Returns true on success, false if connection times out.
+bool connectToWifi(const NetworkCredentials& creds, unsigned long timeoutMs = 30000);
+
+#endif // WIFI_H

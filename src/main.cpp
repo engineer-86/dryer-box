@@ -8,6 +8,7 @@
 #include <FilamentSettings.hpp>
 #include <HeaterSettings.hpp>
 #include <DryerController.hpp>
+#include <Provisioning.hpp>
 #include <Pins.hpp>
 
 TempHumidity    tempHumidity(DHTPIN, DHTTYPE);
@@ -15,6 +16,8 @@ HeaterSettings  heater(tempHumidity);
 Relais          heaterRelay(HEATER_RELAIS_PIN, "Heater");
 NcRelay         fanRelay(FAN_RELAIS_PIN, "Fan");
 DryerController dryer(heater, heaterRelay, fanRelay, tempHumidity);
+Provisioning    provisioning;
+bool            bootCountCleared = false;
 
 void mqttCallback(char *topic, byte *payload, unsigned int length) {
   char message[length + 1];
@@ -47,6 +50,12 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
   else if (topicStr == "cmnd/dryer/fan") {
     dryer.setManualFan(messageStr.equalsIgnoreCase("ON"));
   }
+  else if (topicStr == "cmnd/dryer/config" && messageStr.equalsIgnoreCase("RESET")) {
+    // Wipe credentials and re-enter provisioning on next boot
+    Provisioning::clearCredentials();
+    delay(500);
+    ESP.restart();
+  }
 }
 
 void publishDryerState() {
@@ -66,8 +75,20 @@ void publishDryerState() {
 
 void setup() {
   Serial.begin(115200);
-  connectToWifi();
-  connectToBroker();
+
+  if (!provisioning.begin()) return; // AP mode is blocking; this branch is unreachable
+
+  const NetworkCredentials& creds = provisioning.getCredentials();
+
+  if (!connectToWifi(creds)) {
+    // Saved credentials are no longer valid — clear them and re-provision
+    Serial.println("WiFi failed. Clearing credentials for re-provisioning.");
+    Provisioning::clearCredentials();
+    delay(500);
+    ESP.restart();
+  }
+
+  connectToBroker(creds);
   mqtt_client.setCallback(mqttCallback);
   tempHumidity.setupDHT();
 }
@@ -79,6 +100,13 @@ void loop() {
     reconnectToBroker();
   }
   mqtt_client.loop();
+
+  // Reset boot counter once the device has been running for 10 s.
+  // This ensures the 5x power-cycle reset only triggers on rapid cycling.
+  if (!bootCountCleared && millis() > 10000) {
+    provisioning.clearBootCounter();
+    bootCountCleared = true;
+  }
 
   dryer.update();
   publishDryerState();

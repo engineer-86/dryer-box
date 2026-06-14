@@ -4,7 +4,12 @@ DryerController::DryerController(HeaterSettings& heater, Relais& heaterRelay,
                                  NcRelay& fanRelay, TempHumidity& sensor)
     : heater(heater), heaterRelay(heaterRelay), fanRelay(fanRelay),
       sensor(sensor), state(DryerState::IDLE)
-{}
+{
+    // The NC relay is de-energized by default (GPIO LOW = fan ON).
+    // Explicitly shut both outputs off so IDLE starts clean.
+    heaterRelay.turnOff();
+    fanRelay.turnOff();
+}
 
 void DryerController::transitionTo(DryerState next, const char* reason) {
     Serial.print("STATE ");

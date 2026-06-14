@@ -1,17 +1,21 @@
 #include "Wifi.hpp"
-#include <Credentials.hpp>
 #include <ESP8266WiFi.h>
 
-void connectToWifi()
-{
-    Credentials wifi_credentials;
-    WiFi.begin(wifi_credentials.getWifiSSID(), wifi_credentials.getWifiPassword());
+bool connectToWifi(const NetworkCredentials& creds, unsigned long timeoutMs) {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(creds.wifiSSID.c_str(), creds.wifiPassword.c_str());
 
     Serial.print("Connecting to WiFi");
-    while (WiFi.status() != WL_CONNECTED)
-    {
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED) {
+        if (millis() - start >= timeoutMs) {
+            Serial.println("\nWiFi connection timed out.");
+            return false;
+        }
         delay(500);
         Serial.print(".");
     }
-    Serial.println("\nWiFi connected");
+    Serial.print("\nWiFi connected. IP: ");
+    Serial.println(WiFi.localIP().toString());
+    return true;
 }
