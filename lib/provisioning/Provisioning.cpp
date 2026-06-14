@@ -101,9 +101,17 @@ bool Provisioning::begin() {
         LittleFS.begin();
     }
 
-    // Rapid power-cycle detection: increment counter on every boot.
-    // main loop must call clearBootCounter() after ~10 s of normal operation
-    // so the counter only accumulates during rapid cycling.
+    if (!loadCredentials()) {
+        // No credentials stored yet — go straight to AP mode without touching
+        // the boot counter (counter is only meaningful during normal operation).
+        writeBootCount(0);
+        Serial.println("No credentials found — entering AP mode.");
+        startAPMode();
+        return false; // unreachable
+    }
+
+    // Credentials exist: count this boot and check for rapid power-cycle reset.
+    // main loop must call clearBootCounter() after ~10 s of normal operation.
     uint8_t boots = readBootCount() + 1;
     writeBootCount(boots);
     Serial.printf("Boot count: %d/%d\n", boots, RESET_BOOT_COUNT);
@@ -116,14 +124,8 @@ bool Provisioning::begin() {
         return false; // unreachable
     }
 
-    if (loadCredentials()) {
-        Serial.println("Credentials loaded from storage.");
-        return true;
-    }
-
-    Serial.println("No credentials found — entering AP mode.");
-    startAPMode();
-    return false; // unreachable
+    Serial.println("Credentials loaded from storage.");
+    return true;
 }
 
 uint8_t Provisioning::readBootCount() {

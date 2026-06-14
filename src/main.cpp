@@ -9,6 +9,8 @@
 #include <HeaterSettings.hpp>
 #include <DryerController.hpp>
 #include <Provisioning.hpp>
+#include <DisplayManager.hpp>
+#include <Button.hpp>
 #include <Pins.hpp>
 
 TempHumidity    tempHumidity(DHTPIN, DHTTYPE);
@@ -17,7 +19,14 @@ Relais          heaterRelay(HEATER_RELAIS_PIN, "Heater");
 NcRelay         fanRelay(FAN_RELAIS_PIN, "Fan");
 DryerController dryer(heater, heaterRelay, fanRelay, tempHumidity);
 Provisioning    provisioning;
+DisplayManager  display(DISPLAY_SDA_PIN, DISPLAY_SCL_PIN);
+Button          btnPreset(BUTTON_PRESET_PIN);
+Button          btnStart(BUTTON_START_PIN);
 bool            bootCountCleared = false;
+
+// TestFilament (last entry) is excluded from button cycling
+constexpr uint8_t NUM_PRESETS = (sizeof(filamentSettings) / sizeof(filamentSettings[0])) - 1;
+uint8_t selectedPresetIndex = 0;
 
 void mqttCallback(char *topic, byte *payload, unsigned int length) {
   char message[length + 1];
@@ -51,7 +60,6 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
     dryer.setManualFan(messageStr.equalsIgnoreCase("ON"));
   }
   else if (topicStr == "cmnd/dryer/config" && messageStr.equalsIgnoreCase("RESET")) {
-    // Wipe credentials and re-enter provisioning on next boot
     Provisioning::clearCredentials();
     delay(500);
     ESP.restart();
@@ -73,42 +81,91 @@ void publishDryerState() {
   mqtt_client.publish("tele/dryer/state", buffer);
 }
 
+void updateDisplay() {
+  bool idle = (dryer.getState() == DryerState::IDLE);
+  const FilamentSetting& preset = filamentSettings[selectedPresetIndex];
+
+  display.update(
+    dryer.getStateName(),
+    tempHumidity.getTemperature(),
+    idle ? preset.temperature : heater.getTargetTemperature(),
+    tempHumidity.getHumidity(),
+    idle ? preset.time / 60000 : heater.computeRemainingTime() / 60000,
+    heaterRelay.getState(),
+    fanRelay.getState(),
+    idle ? preset.material.c_str() : nullptr
+  );
+}
+
 void setup() {
   Serial.begin(115200);
+  btnPreset.begin();
+  btnStart.begin();
+  display.begin();
 
-  if (!provisioning.begin()) return; // AP mode is blocking; this branch is unreachable
+  display.showMessage("Dryer Box", "Provisioning...");
+  if (!provisioning.begin()) return;
 
   const NetworkCredentials& creds = provisioning.getCredentials();
 
+  display.showMessage("Connecting", "WiFi...");
   if (!connectToWifi(creds)) {
-    // Saved credentials are no longer valid — clear them and re-provision
-    Serial.println("WiFi failed. Clearing credentials for re-provisioning.");
+    display.showMessage("WiFi failed!", "Resetting...");
     Provisioning::clearCredentials();
-    delay(500);
+    delay(2000);
     ESP.restart();
   }
 
+  display.showMessage("Connecting", "MQTT broker...");
   connectToBroker(creds);
   mqtt_client.setCallback(mqttCallback);
   tempHumidity.setupDHT();
+
+  display.showMessage("Dryer Box", "Ready!");
+  delay(1000);
+}
+
+void handleButtons() {
+  if (btnPreset.wasPressed()) {
+    if (dryer.getState() == DryerState::IDLE) {
+      selectedPresetIndex = (selectedPresetIndex + 1) % NUM_PRESETS;
+      Serial.printf("Preset: %s\n", filamentSettings[selectedPresetIndex].material.c_str());
+    }
+  }
+
+  if (btnStart.wasPressed()) {
+    if (dryer.getState() == DryerState::IDLE) {
+      const FilamentSetting& s = filamentSettings[selectedPresetIndex];
+      dryer.applyFilamentPreset(s.temperature, s.time);
+      Serial.printf("Started: %s\n", s.material.c_str());
+    } else {
+      dryer.reset();
+      Serial.println("Reset");
+    }
+  }
 }
 
 void loop() {
-  tempHumidity.updateReadings();
-
-  if (!mqtt_client.connected()) {
-    reconnectToBroker();
-  }
+  handleButtons();
   mqtt_client.loop();
 
-  // Reset boot counter once the device has been running for 10 s.
-  // This ensures the 5x power-cycle reset only triggers on rapid cycling.
-  if (!bootCountCleared && millis() > 10000) {
-    provisioning.clearBootCounter();
-    bootCountCleared = true;
-  }
+  static uint32_t lastTick = 0;
+  if (millis() - lastTick >= 1000) {
+    lastTick = millis();
 
-  dryer.update();
-  publishDryerState();
-  delay(1000);
+    tempHumidity.updateReadings();
+
+    if (!mqtt_client.connected()) {
+      reconnectToBroker();
+    }
+
+    if (!bootCountCleared && millis() > 10000) {
+      provisioning.clearBootCounter();
+      bootCountCleared = true;
+    }
+
+    dryer.update();
+    updateDisplay();
+    publishDryerState();
+  }
 }
