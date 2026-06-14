@@ -46,7 +46,7 @@ void TempHumidity::setTemperature(float temperature)
   this->temperature = temperature;
 }
 
-void TempHumidity::setHumidtiy(float humidity)
+void TempHumidity::setHumidity(float humidity)
 {
   this->humidity = humidity;
 }

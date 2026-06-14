@@ -12,29 +12,25 @@ void connectToBroker()
 
     while (!mqtt_client.connected())
     {
-        String client_id = "dryer-" + String(random(0xffff), HEX); // Zufällige Client-ID
-        Serial.print("Versuche, zum MQTT Broker zu verbinden...");
+        String client_id = "dryer-" + String(random(0xffff), HEX);
+        Serial.print("Connecting to MQTT broker...");
 
         if (mqtt_client.connect(client_id.c_str(),
                                 broker_credentials.getBrokerUsername(),
                                 broker_credentials.getBrokerPassword()))
         {
-            Serial.println("verbunden");
+            Serial.println("connected");
             mqtt_client.subscribe("cmnd/dryer/filament");
             mqtt_client.subscribe("cmnd/dryer/heater");
             mqtt_client.subscribe("cmnd/dryer/fan");
         }
         else
         {
-            Serial.print("Verbindung fehlgeschlagen, rc=");
+            Serial.print("Connection failed, rc=");
             Serial.print(mqtt_client.state());
-            Serial.println(" versuche es in 5 Sekunden erneut");
+            Serial.println(" — retrying in 5 seconds");
             delay(5000);
         }
-        Serial.print("Broker IP: ");
-        Serial.println(broker_credentials.getBrokerIP());
-        Serial.print("Port: ");
-        Serial.println(broker_credentials.getBrokerPort());
     }
 }
 

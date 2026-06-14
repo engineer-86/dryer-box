@@ -3,8 +3,7 @@
 HeaterSettings::HeaterSettings(TempHumidity& tempHumidity) : tempHumidity(tempHumidity), targetTemperature(0), targetTime(0), startTime(0) {
 }
 
-void HeaterSettings::setTargetTemperature(uint8_t temperature, Relais& heaterRelay, Relais& fanRelay) {
-    tempHumidity.updateReadings(); 
+void HeaterSettings::setTargetTemperature(uint8_t temperature) {
     targetTemperature = temperature;
 }
 

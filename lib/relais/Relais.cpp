@@ -1,6 +1,6 @@
 #include "Relais.hpp"
 
-Relais::Relais(uint8_t p, String n) : pin(p), name(n)
+Relais::Relais(uint8_t p, String n) : pin(p), state(false), name(n)
 {
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
@@ -18,12 +18,12 @@ void Relais::turnOff()
     this->state = false;
 }
 
-String Relais::getName()
+String Relais::getName() const
 {
     return name;
 }
 
-bool Relais::getState()
+bool Relais::getState() const
 {
     return state;
 }

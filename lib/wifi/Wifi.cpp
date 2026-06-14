@@ -7,11 +7,11 @@ void connectToWifi()
     Credentials wifi_credentials;
     WiFi.begin(wifi_credentials.getWifiSSID(), wifi_credentials.getWifiPassword());
 
-    Serial.print("Verbinden mit WIFI");
+    Serial.print("Connecting to WiFi");
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
         Serial.print(".");
     }
-    Serial.println("\nWiFi verbunden");
+    Serial.println("\nWiFi connected");
 }

@@ -12,7 +12,7 @@ public:
     float getTemperature() const;
     float getHumidity() const;
     void setTemperature(float temperature);
-    void setHumidtiy(float humidity);
+    void setHumidity(float humidity);
 
 private:
     DHT dht;

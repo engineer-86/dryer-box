@@ -131,6 +131,55 @@ lib_deps = adafruit/DHT sensor library@^1.4.6
 ```
 `Attention:` you have to change the port to the one you are using!
 
+## Control Logic — State Machine
+
+The dryer uses a finite state machine implemented in `lib/dryer/DryerController`. The current state is included in every MQTT telemetry message (`tele/dryer/state` → `"state"` field).
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> HEATING  : filament preset\n(temp < target)
+    IDLE --> HOLDING  : filament preset\n(temp ≥ target)
+    IDLE --> MANUAL   : manual heater/fan command
+    IDLE --> COOLING  : RESET
+
+    HEATING --> HOLDING  : temp ≥ target
+    HEATING --> COOLING  : timer elapsed
+    HEATING --> MANUAL   : manual heater/fan command
+    HEATING --> COOLING  : RESET
+
+    HOLDING --> HEATING  : temp < target
+    HOLDING --> COOLING  : timer elapsed
+    HOLDING --> MANUAL   : manual heater/fan command
+    HOLDING --> COOLING  : RESET
+
+    COOLING --> IDLE     : temp < 30 °C
+    COOLING --> MANUAL   : manual heater/fan command
+
+    MANUAL --> HEATING   : filament preset\n(temp < target)
+    MANUAL --> HOLDING   : filament preset\n(temp ≥ target)
+    MANUAL --> COOLING   : RESET
+
+    IDLE    --> SAFETY   : temp ≥ 80 °C
+    HEATING --> SAFETY   : temp ≥ 80 °C
+    HOLDING --> SAFETY   : temp ≥ 80 °C
+    COOLING --> SAFETY   : temp ≥ 80 °C
+    MANUAL  --> SAFETY   : temp ≥ 80 °C
+
+    SAFETY --> COOLING   : temp < 75 °C\n(had active target)
+    SAFETY --> IDLE      : temp < 75 °C\n(no active target)
+```
+
+| State | Heater | Fan | Description |
+|---|---|---|---|
+| IDLE | off | off | No active drying cycle |
+| HEATING | on | on | Temperature below target |
+| HOLDING | off | on | At target, fan circulates air |
+| COOLING | off | on | Cycle done, cooling down |
+| MANUAL | — | — | Fully controlled via MQTT |
+| SAFETY | off | on | Over-temperature cutoff (≥ 80 °C) |
+
 ## Future Enhancements
 
 The filament dryer project is continuously evolving, with plans to integrate additional features and improvements to enhance functionality and user experience. Here are some of the planned enhancements:

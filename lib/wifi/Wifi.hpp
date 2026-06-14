@@ -1,6 +1,6 @@
 #ifndef WIFI_H
 #define WIFI_H
 
-void connectToWifi(); // Korrigierter Funktionsname
+void connectToWifi();
 
 #endif /* WIFI_H */
