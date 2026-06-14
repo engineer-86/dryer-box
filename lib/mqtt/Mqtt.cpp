@@ -22,6 +22,7 @@ void connectToBroker(const NetworkCredentials& creds) {
             mqtt_client.subscribe("cmnd/dryer/heater");
             mqtt_client.subscribe("cmnd/dryer/fan");
             mqtt_client.subscribe("cmnd/dryer/config");
+            mqtt_client.subscribe("cmnd/dryer/control");
         } else {
             Serial.print("failed, rc=");
             Serial.print(mqtt_client.state());

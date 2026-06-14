@@ -26,7 +26,8 @@ public:
 
     // MQTT-triggered transitions
     void applyFilamentPreset(uint8_t targetTemp, unsigned long targetTime);
-    void reset();
+    void reset();   // graceful: heater off, fan runs until <30 °C → IDLE
+    void abort();   // immediate: everything off → IDLE right now
     void setManualHeater(bool on);
     void setManualFan(bool on);
 

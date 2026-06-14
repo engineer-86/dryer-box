@@ -28,11 +28,10 @@ void DisplayManager::drawContent(const char* state,
     char buf[28];
 
     u8g2.setFont(u8g2_font_7x14B_tf);
+    u8g2.drawStr(0, 13, state);
     if (selectedPreset) {
-        snprintf(buf, sizeof(buf), "> %s", selectedPreset);
-        u8g2.drawStr(0, 13, buf);
-    } else {
-        u8g2.drawStr(0, 13, state);
+        uint16_t w = u8g2.getStrWidth(selectedPreset);
+        u8g2.drawStr(128 - w, 13, selectedPreset);
     }
 
     u8g2.drawHLine(0, 16, 128);
@@ -69,7 +68,6 @@ void DisplayManager::update(const char* state,
                              bool        heaterOn,
                              bool        fanOn,
                              const char* selectedPreset) {
-    rewire();
     u8g2.clearBuffer();
     drawContent(state, currentTemp, targetTemp, humidity,
                 remainingMinutes, heaterOn, fanOn, selectedPreset);
@@ -77,7 +75,6 @@ void DisplayManager::update(const char* state,
 }
 
 void DisplayManager::showMessage(const char* line1, const char* line2) {
-    rewire();
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_7x14B_tf);
     u8g2.drawStr(0, 22, line1);

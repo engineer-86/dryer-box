@@ -32,37 +32,52 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
   char message[length + 1];
   memcpy(message, payload, length);
   message[length] = '\0';
-  String topicStr(topic);
-  String messageStr(message);
 
-  Serial.print("MQTT | ");
-  Serial.print(topicStr);
-  Serial.print(" | ");
-  Serial.println(messageStr);
+  String topicStr(topic);
+  Serial.printf("MQTT | %s | %s\n", topic, message);
+
+  StaticJsonDocument<128> doc;
+  if (deserializeJson(doc, message)) {
+    Serial.println("MQTT | JSON parse error");
+    return;
+  }
 
   if (topicStr == "cmnd/dryer/filament") {
-    if (messageStr.equalsIgnoreCase("RESET")) {
-      dryer.reset();
-      return;
-    }
-    for (const auto &s : filamentSettings) {
-      if (s.material.equalsIgnoreCase(messageStr)) {
-        dryer.applyFilamentPreset(s.temperature, s.time);
-        Serial.println("Preset applied: " + messageStr);
-        break;
+    const char* material = doc["material"];
+    if (material) {
+      for (const auto &s : filamentSettings) {
+        if (s.material.equalsIgnoreCase(material)) {
+          dryer.applyFilamentPreset(s.temperature, s.time);
+          Serial.printf("Preset applied: %s\n", material);
+          break;
+        }
       }
     }
   }
+  else if (topicStr == "cmnd/dryer/control") {
+    const char* action = doc["action"];
+    if (action) {
+      if (String(action).equalsIgnoreCase("stop"))
+        dryer.reset();   // heater off, fan cools until <30 °C
+      else if (String(action).equalsIgnoreCase("abort"))
+        dryer.abort();   // everything off immediately
+    }
+  }
   else if (topicStr == "cmnd/dryer/heater") {
-    dryer.setManualHeater(messageStr.equalsIgnoreCase("ON"));
+    const char* state = doc["state"];
+    if (state) dryer.setManualHeater(String(state).equalsIgnoreCase("on"));
   }
   else if (topicStr == "cmnd/dryer/fan") {
-    dryer.setManualFan(messageStr.equalsIgnoreCase("ON"));
+    const char* state = doc["state"];
+    if (state) dryer.setManualFan(String(state).equalsIgnoreCase("on"));
   }
-  else if (topicStr == "cmnd/dryer/config" && messageStr.equalsIgnoreCase("RESET")) {
-    Provisioning::clearCredentials();
-    delay(500);
-    ESP.restart();
+  else if (topicStr == "cmnd/dryer/config") {
+    const char* action = doc["action"];
+    if (action && String(action).equalsIgnoreCase("reset")) {
+      Provisioning::clearCredentials();
+      delay(500);
+      ESP.restart();
+    }
   }
 }
 
@@ -125,23 +140,41 @@ void setup() {
   delay(1000);
 }
 
+void publishButtonEvent(const char* button, const char* action) {
+  StaticJsonDocument<64> doc;
+  doc["button"] = button;
+  doc["action"] = action;
+  char buf[64];
+  serializeJson(doc, buf);
+  Serial.printf("BTN | %s | %s\n", button, action);
+  mqtt_client.publish("tele/dryer/button", buf);
+}
+
 void handleButtons() {
+  btnPreset.update();
+  btnStart.update();
+
+  // SELECT (D7): cycle preset when idle
   if (btnPreset.wasPressed()) {
     if (dryer.getState() == DryerState::IDLE) {
       selectedPresetIndex = (selectedPresetIndex + 1) % NUM_PRESETS;
-      Serial.printf("Preset: %s\n", filamentSettings[selectedPresetIndex].material.c_str());
     }
+    publishButtonEvent("select", "press");
   }
 
+  // ENTER short (D4): confirm selection → start drying
   if (btnStart.wasPressed()) {
     if (dryer.getState() == DryerState::IDLE) {
       const FilamentSetting& s = filamentSettings[selectedPresetIndex];
       dryer.applyFilamentPreset(s.temperature, s.time);
-      Serial.printf("Started: %s\n", s.material.c_str());
-    } else {
-      dryer.reset();
-      Serial.println("Reset");
     }
+    publishButtonEvent("enter", "press");
+  }
+
+  // ENTER long 3s (D4): graceful stop → COOLING → IDLE
+  if (btnStart.wasLongPressed()) {
+    dryer.reset();
+    publishButtonEvent("enter", "long_press");
   }
 }
 

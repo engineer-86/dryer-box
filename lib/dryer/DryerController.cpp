@@ -91,8 +91,16 @@ void DryerController::reset() {
     heater.setTargetTemperature(0);
     heater.setTargetTime(0);
     heaterRelay.turnOff();
-    fanRelay.turnOn(); // keep fan running until cooled; COOLING handles the rest
-    transitionTo(DryerState::COOLING, "reset");
+    fanRelay.turnOn();
+    transitionTo(DryerState::COOLING, "stop");
+}
+
+void DryerController::abort() {
+    heater.setTargetTemperature(0);
+    heater.setTargetTime(0);
+    heaterRelay.turnOff();
+    fanRelay.turnOff();
+    transitionTo(DryerState::IDLE, "abort");
 }
 
 void DryerController::setManualHeater(bool on) {

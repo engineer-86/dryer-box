@@ -1,139 +1,95 @@
-# Filament Dryer Project
+# Filament Dryer
 
 ![Dryer schematic](/assets/dryer_box_Steckplatine.png "Fritzing schematic")
 
 ## Motivation
 
-This project was initiated after my Eibos Cyclopes filament dryer stopped functioning. Instead of discarding the entire unit, I opted to repurpose the PTC heating element and the case to construct a bespoke filament dryer. This approach not only recycles parts that are still usable but also delivers a customized solution to meet my specific 3D printing requirements.
+After my Eibos Cyclopes filament dryer stopped working, I repurposed its PTC heating element and case into a custom ESP8266-controlled dryer with WiFi, MQTT, an OLED display, and physical buttons — instead of throwing still-usable hardware away.
 
 <img src="/assets/wired_01.jpg" alt="Inside" width="200"/><img src="/assets/wired_02.jpg" alt="Inside" width="200"/>
 
-## Components
+## Hardware
 
-- **Microcontroller**: ESP8266 (Wemos Mini), selected for its WiFi capabilities and Arduino code compatibility. [More Info](https://shorturl.at/hnuOP)
-- **Sensor**: DHT11, employed for monitoring the humidity and temperature within the dryer.
-- **Relays**: Utilizes two relays for precise control over the PTC heating element and the fan, ensuring optimal temperature and airflow. [More Info](https://shorturl.at/mALQ7)
-- **PTC Heater**: A 220V PTC heating element repurposed from the original filament dryer. [More Info](https://shorturl.at/tvNV9)
-- **Power Converter**: Converts 220V AC to 5V DC, powering the ESP8266 and other low-voltage components. [More Info](https://shorturl.at/dekt5)
+| Component | Part |
+|---|---|
+| Microcontroller | ESP8266 Wemos D1 Mini |
+| Sensor | DHT11 (temp + humidity) |
+| Heater relay | Active-High, NO |
+| Fan relay | Active-High, NC (failsafe: fan runs on power loss) |
+| Display | 128×64 SSD1306 OLED, I2C |
+| Buttons | 2× MX keyboard switch (2-pin, no LED) |
+| PTC heater | 220V, repurposed from Eibos Cyclopes |
+| Power supply | 220V → 5V DC |
 
-## Credentials Template
+## Setup — WiFi & MQTT credentials
 
-Sensitive information such as WiFi and MQTT broker credentials are managed through a template mechanism to ensure security. Here's the template structure:
+Credentials are configured via a captive portal — no hardcoding, no recompiling.
 
-```cpp
-#ifndef CREDENTIALS_H
-#define CREDENTIALS_H
-// creds for wifi and mqtt
-class Credentials
+**First boot:**
+1. Device starts as WiFi AP: **"Dryer-Setup"**
+2. Connect to that network — browser opens automatically
+3. Enter WiFi SSID/password and MQTT broker details
+4. Save → device restarts and connects
+
+**Reset credentials:**
+- Power cycle 5× within 10 s → device clears credentials and re-enters AP mode
+- Or send MQTT command: `cmnd/dryer/config` → `{"action": "reset"}`
+
+## Physical controls
+
+| Button | Pin | Short press | Long press (3 s) |
+|---|---|---|---|
+| SELECT | D7 | Cycle through filament presets | — |
+| ENTER | D4 | Start drying with selected preset | Graceful stop (fan cools to <30 °C) |
+
+Display shows current state (left) and selected preset (right) on the top line.
+
+## MQTT API
+
+All payloads are JSON.
+
+### Commands (subscribe)
+
+| Topic | Payload | Effect |
+|---|---|---|
+| `cmnd/dryer/filament` | `{"material": "PLA"}` | Start drying with preset |
+| `cmnd/dryer/control` | `{"action": "stop"}` | Graceful stop → COOLING → IDLE |
+| `cmnd/dryer/control` | `{"action": "abort"}` | Immediate stop → IDLE |
+| `cmnd/dryer/heater` | `{"state": "on/off"}` | Manual heater override |
+| `cmnd/dryer/fan` | `{"state": "on/off"}` | Manual fan override |
+| `cmnd/dryer/config` | `{"action": "reset"}` | Wipe credentials → AP mode |
+
+### Telemetry (publish)
+
+Topic: `tele/dryer/state` — every second.
+
+```json
 {
-private:
-    const char *_wifi_ssid = "YOUR_SSID";
-    const char *_wifi_password = "YOUR_WIFI_PASSWORD";
-    const char *_broker_ip = "YOUR_BROKER_IP";
-    const int _broker_port = 1883; // Default MQTT port
-    const char *_broker_user = "YOUR_BROKER_USERNAME";
-    const char *_broker_password = "YOUR_BROKER_PASSWORD";
-
-public:
-    static const char *getWifiSSID() { return "YOUR_SSID"; }
-    static const char *getWifiPassword() { return "YOUR_WIFI_PASSWORD"; }
-    static const char *getBrokerIP() { return "YOUR_BROKER_IP"; }
-    static int getBrokerPort() { return 1883; }
-    static const char *getBrokerUsername() { return "YOUR_BROKER_USERNAME"; }
-    static const char *getBrokerPassword() { return "YOUR_BROKER_PASSWORD"; }
-};
-
-#endif /* CREDENTIALS_H */
-
+  "state": "HEATING",
+  "humidity": 42.0,
+  "currentTemperature": 51.3,
+  "targetTemperature": 50,
+  "remainingTime": 218,
+  "heaterState": true,
+  "fanState": true
+}
 ```
 
-## WiFi and MQTT Integration
+## Filament presets
 
-The project leverages the ESP8266's WiFi capabilities to connect to a local network and communicate with an MQTT broker. This setup enables remote monitoring and control of the filament dryer's operations.
+| Material | Temp (°C) | Time |
+|---|---|---|
+| PLA | 50 | 4 h |
+| ABS | 60 | 2 h |
+| PETG | 65 | 2 h |
+| NYLON | 70 | 2 h |
+| PC | 70 | 8 h |
+| TPU | 55 | 4 h |
+| PVA | 50 | 4 h |
+| ASA | 60 | 4 h |
+| PP | 55 | 6 h |
 
-### WiFi Connectivity
-
-The ESP8266 connects to a predefined WiFi network using credentials specified in the `credentials.hpp` template. This step is crucial for enabling internet access and, subsequently, MQTT communication. The WiFi library initializes the connection in the setup phase of the program, ensuring the device maintains connectivity throughout its operation.
-
-### MQTT Communication
-
-The filament dryer utilizes MQTT (Message Queuing Telemetry Transport) for effective communication regarding the dryer's status, and to receive commands for operational control. It is configured to both publish its sensor data and subscribe to topics for remote commands.
-
-- **Subscribed Topics**:
-
-  - `cmnd/dryer/filament`: This topic listens for commands related to the filament. Commands published to this topic can control aspects like which filament to use or when to start drying.
-  - `cmnd/dryer/heater`: Through this topic, the dryer receives commands to control the heater's operation, such as turning the heater on or off and setting the desired temperature.
-  - `cmnd/dryer/fan`: This topic is used for controlling the fan's functionality within the dryer, allowing for adjustments in airflow to ensure optimal drying conditions.
-    cts to an MQTT broker, specified in the `credentials.hpp`, to publish sensor readings and subscribe to control topics.
-- **Publishing Data**: The device periodically publishes temperature and humidity readings to the MQTT topic `tele/heater/state`. This allows for remote monitoring of the filament dryer's environment through any MQTT client subscribed to the same topic.
-
-  ```cpp
-  connected_mqtt_client.publish("tele/dryer/state", payload);
-  ```
-
-  ## Filament Drying Times and MQTT Message Handling
-
-### Filament Settings
-
-The `FilamentSettings.hpp` file contains definitions for various 3D printing filaments, specifying the recommended drying temperature and time. These settings are crucial for ensuring that each filament type is dried under optimal conditions to preserve its quality and printing characteristics.
-
-Here is a summary of the drying settings for different filament materials:
-
-- PLA: 50°C for 4 hours
-- ABS: 60°C for 2 hours
-- PETG: 65°C for 2 hours
-- NYLON: 70°C for 2 hours
-- PC: 70°C for 8 hours
-- TPU: 55°C for 4 hours
-- PVA: 50°C for 4 hours
-- ASA: 60°C for 4 hours
-- PP: 55°C for 6 hours
-
-The drying time is calculated in milliseconds using the `hoursToMilliseconds` function, providing a precise control mechanism for the drying process.
-
-### MQTT Message Handling
-
-The system subscribes to specific MQTT topics to receive commands that control the drying process. Here are the key topics and their expected messages:
-
-- `cmnd/dryer/filament`: Receives the filament material name. The system then applies the corresponding drying settings for temperature and time.
-
-  - Sending a filament name (e.g., "PLA") sets the dryer to the specific settings for that filament.
-  - Sending "RESET" resets the dryer to a default state, turning off the heater and activating the fan.
-- `cmnd/dryer/heater`: Controls the state of the heater.
-
-  - Sending "ON" activates the heater (manual override).
-  - Sending "OFF" deactivates the heater (manual override).
-- `cmnd/dryer/fan`: Manages the operation of the fan.
-
-  - Sending "ON" turns the fan on (considering Normally Closed - NC - logic).
-  - Sending "OFF" turns the fan off (NC logic).
-
-Each command is processed in the `mqttCallback` function, which adjusts the dryer's operation according to the received message. This allows for remote monitoring and control over the drying process, ensuring that filaments are prepared optimally for 3D printing.
-
-## PlatformIO Configuration
-
-The `platformio.ini` file is configured for the ESP8266 with essential libraries for DHT sensor reading, MQTT communication, NTP for time synchronization, and JSON for data handling.
-
-```ini
-[env:nodemcuv2]
-platform = espressif8266
-board = nodemcuv2
-framework = arduino
-monitor_speed = 115200
-monitor_port = COM9
-upload_port = COM9
-upload_speed = 115200
-lib_deps = adafruit/DHT sensor library@^1.4.6
-           adafruit/Adafruit Unified Sensor@^1.1.4
-           knolleary/PubSubClient@^2.8
-           arduino-libraries/NTPClient@^3.2.1
-           bblanchon/ArduinoJson@^6.19.4
-```
-`Attention:` you have to change the port to the one you are using!
-
-## Control Logic — State Machine
-
-The dryer uses a finite state machine implemented in `lib/dryer/DryerController`. The current state is included in every MQTT telemetry message (`tele/dryer/state` → `"state"` field).
+## State machine
 
 ```mermaid
 stateDiagram-v2
@@ -142,24 +98,24 @@ stateDiagram-v2
     IDLE --> HEATING  : filament preset\n(temp < target)
     IDLE --> HOLDING  : filament preset\n(temp ≥ target)
     IDLE --> MANUAL   : manual heater/fan command
-    IDLE --> COOLING  : RESET
+    IDLE --> COOLING  : stop/abort
 
     HEATING --> HOLDING  : temp ≥ target
     HEATING --> COOLING  : timer elapsed
     HEATING --> MANUAL   : manual heater/fan command
-    HEATING --> COOLING  : RESET
+    HEATING --> COOLING  : stop/abort
 
     HOLDING --> HEATING  : temp < target
     HOLDING --> COOLING  : timer elapsed
     HOLDING --> MANUAL   : manual heater/fan command
-    HOLDING --> COOLING  : RESET
+    HOLDING --> COOLING  : stop/abort
 
     COOLING --> IDLE     : temp < 30 °C
     COOLING --> MANUAL   : manual heater/fan command
 
     MANUAL --> HEATING   : filament preset\n(temp < target)
     MANUAL --> HOLDING   : filament preset\n(temp ≥ target)
-    MANUAL --> COOLING   : RESET
+    MANUAL --> COOLING   : stop
 
     IDLE    --> SAFETY   : temp ≥ 80 °C
     HEATING --> SAFETY   : temp ≥ 80 °C
@@ -176,24 +132,29 @@ stateDiagram-v2
 | IDLE | off | off | No active drying cycle |
 | HEATING | on | on | Temperature below target |
 | HOLDING | off | on | At target, fan circulates air |
-| COOLING | off | on | Cycle done, cooling down |
+| COOLING | off | on | Cycle done or stopped, cooling down |
 | MANUAL | — | — | Fully controlled via MQTT |
-| SAFETY | off | on | Over-temperature cutoff (≥ 80 °C) |
+| SAFETY | off | on | Over-temperature cutoff (≥ 80 °C, hysteresis 75 °C) |
 
-## Future Enhancements
+## Build & flash
 
-The filament dryer project is continuously evolving, with plans to integrate additional features and improvements to enhance functionality and user experience. Here are some of the planned enhancements:
+Requires [PlatformIO](https://platformio.org/).
 
-- [ ] **Checkboxes Integration**: Implementing a web interface with checkboxes for selecting the filament type and setting the drying parameters. This will allow for an easier and more intuitive control over the drying process.
-- [ ] **Push Button Support**: Adding physical push buttons to the dryer for manual control. This will include buttons for starting/stopping the drying cycle, selecting filament types, and manually overriding temperature and time settings.
-- [ ] **OLED Display Output**: Incorporating an OLED display to show real-time information about the drying process. This display will provide feedback on the current temperature, humidity, drying time remaining, and selected filament type, making it easier for users to monitor the dryer's status.
-- [ ] **Stepper Motor Control for Filament Rotation**: Implementing stepper motor control to rotate the filament spools during the drying process. This feature aims to ensure even drying by periodically turning the spools, preventing moisture from settling in any one area of the filament.
-  Like the `printables procject from warpster` [printables link](https://www.printables.com/model/336958)
+```bash
+# Build
+~/.platformio/penv/bin/pio run
 
-These enhancements aim to improve the usability and flexibility of the filament dryer, making it more accessible and informative for users. Stay tuned for updates as these features are developed and integrated into the project.
+# Flash
+~/.platformio/penv/bin/pio run --target upload
+
+# Serial monitor
+~/.platformio/penv/bin/pio device monitor
+```
+
+> If upload fails with "Invalid head of packet": erase flash first with
+> `~/.platformio/penv/bin/pio run --target erase`, then upload again.
+> After erasing, LittleFS credentials are wiped — re-provision via AP mode.
 
 ## License
 
-This project is made available under the MIT License. This license allows everyone to use, modify, distribute, and privately or commercially exploit the project, under the condition that the original copyright notice and permission notice are included in all copies or substantial portions of the software.
-
-The MIT License is a permissive license that is short and to the point. It lets people do anything they want with your code as long as they provide attribution back to you and don’t hold you liable.
+MIT License — use, modify, distribute freely with attribution.
