@@ -26,9 +26,12 @@ public:
 private:
     uint8_t _sdaPin;
     uint8_t _sclPin;
-    U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2;
+    U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
 
-    void drawStatusBar(bool heaterOn, bool fanOn);
+    void rewire();
+    void drawContent(const char* state, float currentTemp, uint8_t targetTemp,
+                     float humidity, uint32_t remainingMinutes,
+                     bool heaterOn, bool fanOn, const char* selectedPreset);
 };
 
 #endif // DISPLAY_MANAGER_HPP
