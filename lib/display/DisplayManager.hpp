@@ -29,6 +29,7 @@ private:
     U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
 
     void rewire();
+    void scanI2C();
     void drawContent(const char* state, float currentTemp, uint8_t targetTemp,
                      float humidity, uint32_t remainingMinutes,
                      bool heaterOn, bool fanOn, const char* selectedPreset);

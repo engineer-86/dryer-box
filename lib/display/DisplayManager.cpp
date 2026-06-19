@@ -1,7 +1,7 @@
 #include "DisplayManager.hpp"
 
 DisplayManager::DisplayManager(uint8_t sdaPin, uint8_t sclPin)
-    : _sdaPin(sdaPin), _sclPin(sclPin), u8g2(U8G2_R0, U8X8_PIN_NONE)
+    : _sdaPin(sdaPin), _sclPin(sclPin), u8g2(U8G2_R0, U8X8_PIN_NONE, sclPin, sdaPin)
 {}
 
 void DisplayManager::rewire() {
@@ -9,10 +9,33 @@ void DisplayManager::rewire() {
     Wire.setClock(100000);
 }
 
+void DisplayManager::scanI2C() {
+    Serial.printf("I2C scan (SDA=GPIO%d, SCL=GPIO%d):\n", _sdaPin, _sclPin);
+    uint8_t found = 0;
+    for (uint8_t addr = 1; addr < 127; addr++) {
+        Wire.beginTransmission(addr);
+        if (Wire.endTransmission() == 0) {
+            Serial.printf("  found device at 0x%02X\n", addr);
+            found++;
+        }
+    }
+    if (!found) Serial.println("  no I2C devices found!");
+
+    // explicit check for SSD1306 address
+    Wire.beginTransmission(0x3C);
+    uint8_t err = Wire.endTransmission();
+    Serial.printf("  0x3C probe: %s (err=%d)\n", err == 0 ? "ACK" : "NACK", err);
+}
+
 void DisplayManager::begin() {
     rewire();
-    delay(200);
-    u8g2.begin();
+    delay(3000); // wait for serial monitor
+    scanI2C();
+    if (!u8g2.begin()) {
+        Serial.println("DISPLAY | u8g2.begin() failed");
+    } else {
+        Serial.println("DISPLAY | u8g2.begin() OK");
+    }
     u8g2.setContrast(200);
     showMessage("Dryer Box", "Starting...");
 }
@@ -68,6 +91,7 @@ void DisplayManager::update(const char* state,
                              bool        heaterOn,
                              bool        fanOn,
                              const char* selectedPreset) {
+    rewire();
     u8g2.clearBuffer();
     drawContent(state, currentTemp, targetTemp, humidity,
                 remainingMinutes, heaterOn, fanOn, selectedPreset);
@@ -75,6 +99,7 @@ void DisplayManager::update(const char* state,
 }
 
 void DisplayManager::showMessage(const char* line1, const char* line2) {
+    rewire();
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_7x14B_tf);
     u8g2.drawStr(0, 22, line1);
